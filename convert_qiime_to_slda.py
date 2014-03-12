@@ -5,6 +5,7 @@ from argparse import RawTextHelpFormatter
 from ml_utils.parse import load_dataset 
 from ml_utils.util import convert_labels_to_int
 from ml_utils.cross_validation import get_test_sets, get_test_train_set
+from ml_utils.slda import write_matrix_to_slda_file
 
 def interface():
     args = argparse.ArgumentParser(
@@ -66,12 +67,7 @@ def create_slda_dataset(data_matrix, labels, output_prefix, sample_ids=None):
     
     # 2) Create data file for SLDA Format: 
     output_name = output_prefix + 'data.txt' 
-    output = open(output_name, 'w')
-    N = data_matrix.shape[1] 
-    for row in data_matrix:
-        to_write = [ '%d:%d'%(k, row[k]) for k in xrange(N) if row[k] > 0 ] 
-        output.write('%d %s\n' % (len(to_write), ' '.join(to_write)))
-    output.close()
+    write_matrix_to_slda_file(data_matrix, output_name)
 
     # 3) Create sample id file: one per line (NOT NEEDED BY SLDA)
     if sample_ids is not None:
