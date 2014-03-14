@@ -4,8 +4,18 @@ import argparse
 from argparse import RawTextHelpFormatter
 from ml_utils.parse import load_dataset 
 from ml_utils.util import convert_labels_to_int
-from ml_utils.cross_validation import get_test_sets, get_test_train_set
+from ml_utils.cross_validation import get_test_sets, get_test_train_set, load_test_sets_from_file
 from ml_utils.slda import write_matrix_to_slda_file
+
+""" 
+    This code can be used to format python matrices/labels into
+    the input format required by the C implementation of the SLDA 
+    algorithm, the one found on David Blei's website.  
+
+    Using the --validation flag, a set of matrices training/testing matrices is
+    created.  Otherwise, by default, the program converts the matrix and all 
+    labels into a format suitable for the C program. 
+"""
 
 def interface():
     args = argparse.ArgumentParser(
@@ -23,6 +33,7 @@ def interface():
     args.add_argument('-v', '--metadata-value', help='Metadata value') 
     args.add_argument('-o', '--output-prefix', help='Prefix for output files (default: ./out_)', \
                             default='./out_', type=str)
+    args.add_argument('-t', '--test-sets-file', help='File of training/test indices', default=None)
 
     args.add_argument('--dm', action='store_true', help='Input ' + \
         'matrix is a distance matrix', default=False)
@@ -33,13 +44,14 @@ def interface():
     args = args.parse_args()
     return args
 
-def create_slda_cv_dataset(data_matrix, labels, output_prefix):
+def create_slda_cv_dataset(data_matrix, labels, output_prefix, test_sets=None):
     """ Create cross validation sets to evaluation """ 
 
-    # Not currently tracking sample ids... should add that eventually.  
-
     unique_labels, labels = convert_labels_to_int(labels)
-    test_sets = get_test_sets(labels, kfold=10, stratified=True)
+
+    if test_sets is None:
+        test_sets = get_test_sets(labels, kfold=10, stratified=True)
+
     for idx, test_set in enumerate(test_sets):
         train_matrix, train_labels, test_matrix, test_labels = \
             get_test_train_set(data_matrix, labels, test_set)
@@ -48,6 +60,12 @@ def create_slda_cv_dataset(data_matrix, labels, output_prefix):
         create_slda_dataset(train_matrix, train_labels, output_name)
         output_name = '%s_%d_%s_' % (output_prefix, idx, 'test')
         create_slda_dataset(test_matrix, test_labels, output_name)
+
+    # Labels were converted to integers, save a legend 
+    output = open(output_name + '_label_info.txt')
+    for idx, label in enumerate(unique_labels):
+        output.write('%d: %s\n' % (idx, label))
+    output.close() 
 
 def create_slda_dataset(data_matrix, labels, output_prefix, sample_ids=None):
     """ Reformat matrix+labels for the SLDA C implementation.  
@@ -84,5 +102,7 @@ if __name__=="__main__":
     if not args.validation:
         create_slda_dataset(data_matrix, labels, args.output_prefix, sample_ids)
     else:
-        create_slda_cv_dataset(data_matrix, labels, args.output_prefix)
+        if args.test_sets_file is not None:
+            test_sets = load_test_sets_from_file(args.test_sets_file)
+        create_slda_cv_dataset(data_matrix, labels, args.output_prefix, test_sets)
 
