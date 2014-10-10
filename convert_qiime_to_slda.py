@@ -77,15 +77,21 @@ def create_slda_dataset(data_matrix, labels, output_prefix, sample_ids=None):
               In other words, the number of <term>:<count> pairs to follow.
     """ 
     # 1)  Create labels file: one label per line 
-    unique_labels, label_indices = convert_labels_to_int(labels)
     output_name = output_prefix + 'labels.txt'
     output = open(output_name, 'w')
-    output.write('\n'.join([str(l) for l in label_indices]))
+    labels_file = output_name
+    if labels is not None:
+        unique_labels, label_indices = convert_labels_to_int(labels)
+        output.write('\n'.join([str(l) for l in label_indices]))
+    else:
+        fake_labels = [0]*len(data_matrix)
+        output.write('\n'.join([str(l) for l in fake_labels]))
     output.close()
     
     # 2) Create data file for SLDA Format: 
     output_name = output_prefix + 'data.txt' 
     write_matrix_to_slda_file(data_matrix, output_name)
+    data_file = output_name
 
     # 3) Create sample id file: one per line (NOT NEEDED BY SLDA)
     if sample_ids is not None:
@@ -93,6 +99,9 @@ def create_slda_dataset(data_matrix, labels, output_prefix, sample_ids=None):
         output = open(output_name, 'w')
         output.write('\n'.join(sample_ids))
         output.close() 
+    
+    return data_file, labels_file
+
 
 if __name__=="__main__":
     args = interface()
